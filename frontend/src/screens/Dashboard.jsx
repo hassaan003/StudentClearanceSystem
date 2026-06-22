@@ -263,6 +263,7 @@
 // 'useState' lets us store and update values on the screen dynamically.
 // 'useEffect' lets us run a function automatically when the screen loads.
 import { useState, useEffect } from 'react';
+import HistoryScreen from './History';
 
 // Central API endpoints configured directly for the MERN execution server
 const CLEARANCE_REQ_URL = 'http://localhost:5000/api/clearance/request';
@@ -270,7 +271,7 @@ const CLEARANCE_STATUS_URL = 'http://localhost:5000/api/clearance/my-status';
 const PENDING_REQS_URL = 'http://localhost:5000/api/clearance/pending';
 const CLEARANCE_ACTION_URL = 'http://localhost:5000/api/clearance/action';
 
-function DashboardScreen({ user, handleLogout }) {
+function DashboardScreen({ user, handleLogout, handleHistory }) {
   // Evaluates to 'true' if the logged-in user is a student, 'false' if it's a department admin.
   const isStudent = user.role === 'student';
 
@@ -563,6 +564,7 @@ function DashboardScreen({ user, handleLogout }) {
       <button onClick={handleLogout} style={logoutBtnStyle}>
         Logout
       </button>
+      <button onClick={handleHistory} style={logoutBtnStyle}>History</button>
     </div>
   );
 }

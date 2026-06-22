@@ -34,6 +34,7 @@ app.post('/api/signup', async (req, res) => {
             return res.status(400).json({ message: "Registration number is already registered!" });
         }
 
+
         // Create a new user matching the Schema structure
         const newUser = new User({
             name,
@@ -122,11 +123,12 @@ app.post('/api/clearance/request', async (req, res) => {
             }
         });
 
+
         // Step C: Save this document inside our local MongoDB database
         const savedRequest = await newRequest.save();
 
         // Send a 201 Created status back to the client along with the new clearance statuses
-        res.status(201).json({
+        res.status(200).json({
             message: "Clearance process initiated successfully!",
             clearance: savedRequest
         });
@@ -162,6 +164,29 @@ app.get('/api/clearance/my-status', async (req, res) => {
     } catch (error) {
         console.error("Fetch Status Route Error:", error);
         res.status(500).json({ message: "error: Failed to fetch clearance status", error: error.message });
+    }
+});
+
+app.get('/api/clearance/approved',async(req, res)=>{
+    try{
+        const {departmentRole}=req.query;
+
+        if(!departmentRole||departmentRole==='student'){
+            return res.status(403).json({message:"unauthroized access"});
+        }
+
+        const dynamicQuery={
+            [`statuses.${departmentRole}.status`]:'Approved'
+        };
+
+        const approvedStudents=await ClearanceRequest.find(dynamicQuery).populate('studentId','name registeration_no');
+        res.status(200).json({requests:approvedStudents});
+
+
+    }
+    catch(error){
+        console.error('fetch approved students error',error);
+        res.status(500).json({message:'error',error:error.message});
     }
 });
 

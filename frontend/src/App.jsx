@@ -5,6 +5,7 @@ import { useState } from 'react';
 import LoginScreen from './screens/Login';
 import SignupScreen from './screens/Signup';
 import DashboardScreen from './screens/Dashboard';
+import HistoryScreen from './screens/History';
 
 function App() {
   // 'screen' state handles routing ('login', 'signup', 'dashboard')
@@ -20,6 +21,11 @@ function App() {
     setScreen('login'); // Boots user interface redirection to the login view window
   };
 
+  const handleHistory=()=>{
+    setScreen('history');
+
+  }
+
   return (
     <div style={containerStyle}>
       {/* Short-circuit evaluation logic strings -> if screen condition matches, render that screen file */}
@@ -34,7 +40,11 @@ function App() {
       )}
       
       {screen === 'dashboard' && user && (
-        <DashboardScreen user={user} handleLogout={handleLogout} />
+        <DashboardScreen user={user} handleLogout={handleLogout} handleHistory={handleHistory} />
+      )}
+
+      {screen==='history'&&(
+        <HistoryScreen user={user} setScreen={setScreen}/>
       )}
     </div>
   );

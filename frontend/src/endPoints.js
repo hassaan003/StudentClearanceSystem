@@ -12,3 +12,4 @@ export const CLEARANCE_STATUS_URL = BASE_URL + 'api/clearance/my-status';
 
 export const PENDING_REQS_URL=BASE_URL+'api/clearance/pending';
 
+export const APPROVED_REQS_URL=BASE_URL+'api/clearance/approved';
