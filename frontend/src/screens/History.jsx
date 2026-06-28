@@ -42,6 +42,7 @@ function HistoryScreen({user,setScreen}){
                     </div>        
                 ))}
             </div>
+            <button onClick={()=>setScreen('dashboard')} style={{ marginTop: '20px', padding: '10px 20px', backgroundColor: 'lightgrey', color: 'black', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Back</button>
 
         </div>
     )
@@ -51,6 +52,6 @@ function HistoryScreen({user,setScreen}){
 
 const checklistLineStyle = { display: 'flex', flexDirection: 'column', padding: '12px', backgroundColor: '#e0e0e0', borderRadius: '5px', border: '1px solid black' };
 
-const mainStyle = { display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', fontFamily: 'sans-serif', backgroundColor: 'darkgrey', padding: '20px' };
+const mainStyle = { display: 'flex',width:'100%', flexDirection:'column',justifyContent: 'center', alignItems: 'center', minHeight: '100vh', fontFamily: 'sans-serif', backgroundColor: 'grey', padding: '20px' };
 
 export default HistoryScreen;

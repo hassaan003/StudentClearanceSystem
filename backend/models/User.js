@@ -1,4 +1,3 @@
-// backend/models/User.js
 const mongoose = require('mongoose');
 
 
@@ -11,7 +10,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true,
-        unique: true // Prevents two students with the same Roll No
+        unique: true
     },
     password: {
         type: String,
@@ -25,14 +24,13 @@ const userSchema = new mongoose.Schema({
     department: {
         type: String,
         required: true,
-        trim: true // e.g., "CS", "EE", "BBA"
+        trim: true 
     },
     role: {
         type: String,
         enum: ['student', 'finance', 'datacell', 'lab', 'cafeteria', 'library', 'report', 'photocopier'],
 
-        default: 'student' // Automatically assigns 'student' if no role is given
-
+        default: 'student' 
     }
 
 }, { timestamps: true });

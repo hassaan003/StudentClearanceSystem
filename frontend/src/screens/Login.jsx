@@ -13,7 +13,7 @@ function LoginScreen({ setScreen, setUser, setMessage, message }) {
         setMessage(''); 
       }, 2000);
 
-      return () => clearTimeout(timer); // Cleans up the timer if the user leaves the screen early
+      return () => clearTimeout(timer); 
     }
   }, [message, setMessage]);
 
@@ -23,7 +23,7 @@ function LoginScreen({ setScreen, setUser, setMessage, message }) {
 
     try {
       const response = await fetch(SIGNIN_URL, {
-        method: 'POST', // Sends login parameters safely hidden inside the network request body
+        method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ registeration_no: loginRegNo, password: loginPassword })
       });
@@ -31,15 +31,14 @@ function LoginScreen({ setScreen, setUser, setMessage, message }) {
       const data = await response.json();
 
       if (response.ok) {
-        // 'setUser(data.user)' sends the student's profile information back up to App.jsx memory
         setUser(data.user);
-        setScreen('dashboard'); // Switches view to the user home dashboard
+        setScreen('dashboard'); 
       } else {
-        setMessage(`❌ Error: ${data.message}`);
+        setMessage(` Error: ${data.message}`);
       }
     } catch (error) {
       console.error(error);
-      setMessage("❌ Cannot connect to the server.");
+      setMessage("Cannot connect to the server.");
     }
   };
 

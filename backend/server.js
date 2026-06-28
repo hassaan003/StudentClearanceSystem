@@ -1,53 +1,44 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-require('dotenv').config(); // Loads environment variables from .env
+require('dotenv').config();
 
-const User = require('./models/User'); // Imports our database blueprint
-const ClearanceRequest=require('./models/ClearanceRequest');
+const User = require('./models/User');
+const ClearanceRequest = require('./models/ClearanceRequest');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors());
-app.use(express.json()); // Turns incoming raw JSON data into usable JavaScript objects
+app.use(express.json());
 
-// MongoDB Local Connection
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log("✅ MongoDB local database connected successfully!"))
     .catch((error) => console.error("❌ Database connection error:", error));
 
-// 1. Handshake Route
 app.get('/api/test', (req, res) => {
     res.json({ message: "Backend and Database are both connected successfully!" });
 });
 
-// 2. Signup Route
 app.post('/api/signup', async (req, res) => {
     try {
         const { name, registeration_no, password, phoneNumber, department } = req.body;
 
-        // Extra check: Ensure a user with this Registration No doesn't already exist
         const existingUser = await User.findOne({ registeration_no });
         if (existingUser) {
             return res.status(400).json({ message: "Registration number is already registered!" });
         }
 
-
-        // Create a new user matching the Schema structure
         const newUser = new User({
             name,
             registeration_no,
-            password, // Stored as plain-text for now to keep things easy to understand
+            password,
             phoneNumber,
             department
         });
 
-        // Save the user to the local database
         const savedUser = await newUser.save();
 
-        // Send back a success message + the saved user object
         res.status(201).json({
             message: "User registered successfully!",
             user: savedUser
@@ -60,19 +51,15 @@ app.post('/api/signup', async (req, res) => {
 });
 
 app.post('/api/login', async (req, res) => {
-    //app.post defines http post route that hides sensitive data.
-    //'api/login' it's url path that frontend will use to send data.
-    //async allows code to pause and wait for database operations without freezing the server.
-    //req holds information coming from user.
-    //res holds information sent to user.
+
     try {
-        const { registeration_no, password } = req.body; //req.body contains all the infromation sent by user through api request. 
+        const { registeration_no, password } = req.body;
         const user = await User.findOne({ registeration_no });
 
         if (!user) {
             return res.status(400).json({ message: "invalid registeration or password" });
 
-        }                                               //messages are same for security reason.
+        }
 
         if (user.password !== password) {
             return res.status(400).json({ message: "invalid registeration or password" });
@@ -91,27 +78,24 @@ app.post('/api/login', async (req, res) => {
         });
 
     }
-    catch(error){
-        console.error("Login Error:",error);
-        res.status(500).json({message:"error during login", error:error.message});
+    catch (error) {
+        console.error("Login Error:", error);
+        res.status(500).json({ message: "error during login", error: error.message });
     }
 });
 
 app.post('/api/clearance/request', async (req, res) => {
     try {
-        // 'req.body.studentId' grabs the student's unique database ID sent from React
         const { studentId } = req.body;
 
-        // Step A: Check if this student already has an active clearance document
         const existingRequest = await ClearanceRequest.findOne({ studentId });
         if (existingRequest) {
             return res.status(400).json({ message: "error: You have already initiated your clearance process!" });
         }
 
-        // Step B: Create a fresh request document based on our ClearanceRequest schema
-        // This sets all 7 departments to 'Pending' in one single database write!
+
         const newRequest = new ClearanceRequest({
-            studentId: studentId, // References the student's User ID
+            studentId: studentId,
             statuses: {
                 finance: { status: 'Pending', reason: '' },
                 datacell: { status: 'Pending', reason: '' },
@@ -124,10 +108,8 @@ app.post('/api/clearance/request', async (req, res) => {
         });
 
 
-        // Step C: Save this document inside our local MongoDB database
         const savedRequest = await newRequest.save();
 
-        // Send a 201 Created status back to the client along with the new clearance statuses
         res.status(200).json({
             message: "Clearance process initiated successfully!",
             clearance: savedRequest
@@ -139,26 +121,19 @@ app.post('/api/clearance/request', async (req, res) => {
     }
 });
 
-// ============================================================================
-// 5. FETCH CLEARANCE STATUS ROUTE (Student Checklist Tracker)
-// ============================================================================
-// 'app.get' is used because we are just querying (reading) data, not modifying it.
+
 app.get('/api/clearance/my-status', async (req, res) => {
     try {
-        // For GET requests, we cannot send a hidden body. 
-        // We grab parameters out of the URL string (?studentId=XXXX) using 'req.query'
+
         const { studentId } = req.query;
 
-        // Find the clearance document belonging to this student ID
         const clearance = await ClearanceRequest.findOne({ studentId });
 
-        // If 'clearance' is empty (null), it means they have never clicked "Apply" yet.
-        // We return null with a 200 code so the frontend knows to display the "Apply" button.
+
         if (!clearance) {
             return res.status(200).json({ clearance: null });
         }
 
-        // If found, send the clearance document containing the 7 statuses back to React
         res.status(200).json({ clearance });
 
     } catch (error) {
@@ -167,53 +142,46 @@ app.get('/api/clearance/my-status', async (req, res) => {
     }
 });
 
-app.get('/api/clearance/approved',async(req, res)=>{
-    try{
-        const {departmentRole}=req.query;
+app.get('/api/clearance/approved', async (req, res) => {
+    try {
+        const { departmentRole } = req.query;
 
-        if(!departmentRole||departmentRole==='student'){
-            return res.status(403).json({message:"unauthroized access"});
+        if (!departmentRole || departmentRole === 'student') {
+            return res.status(403).json({ message: "unauthroized access" });
         }
 
-        const dynamicQuery={
-            [`statuses.${departmentRole}.status`]:'Approved'
+        const dynamicQuery = {
+            [`statuses.${departmentRole}.status`]: 'Approved'
         };
 
-        const approvedStudents=await ClearanceRequest.find(dynamicQuery).populate('studentId','name registeration_no');
-        res.status(200).json({requests:approvedStudents});
+        const approvedStudents = await ClearanceRequest.find(dynamicQuery).populate('studentId', 'name registeration_no');
+        res.status(200).json({ requests: approvedStudents });
 
 
     }
-    catch(error){
-        console.error('fetch approved students error',error);
-        res.status(500).json({message:'error',error:error.message});
+    catch (error) {
+        console.error('fetch approved students error', error);
+        res.status(500).json({ message: 'error', error: error.message });
     }
 });
 
 app.get('/api/clearance/pending', async (req, res) => {
     try {
-        // We grab the department's role from the URL (e.g., ?departmentRole=finance)
         const { departmentRole } = req.query;
 
-        // Security Check: If no role is provided or a student tries to access this, block them.
         if (!departmentRole || departmentRole === 'student') {
             return res.status(403).json({ message: "error: Unauthorized access." });
         }
 
-        // --- CONCEPT: DYNAMIC QUERY KEYS ---
-        // We need to check if 'statuses.finance.status' equals 'Pending'.
-        // Because the department changes based on who logs in, we use [ `...` ] to create a dynamic key.
+
         const dynamicQuery = {
             [`statuses.${departmentRole}.status`]: 'Pending'
         };
 
-        // --- CONCEPT: POPULATE (Joining Data) ---
-        // 'ClearanceRequest.find(dynamicQuery)' gets all matching requests.
-        // '.populate()' tells MongoDB: "Take the 'studentId', go to the User collection, and bring back their name, roll number, department, and phone!"
+
         const pendingStudents = await ClearanceRequest.find(dynamicQuery)
             .populate('studentId', 'name registeration_no department phoneNumber');
 
-        // Send the populated array of pending students back to the Admin's React screen
         res.status(200).json({ requests: pendingStudents });
 
     } catch (error) {
@@ -226,7 +194,6 @@ app.post('/api/clearance/action', async (req, res) => {
     try {
         const { requestId, departmentRole, action, reason } = req.body;
 
-        // Validation Checks
         if (!requestId || !departmentRole || !action) {
             return res.status(400).json({ message: "error: Missing required parameters." });
         }
@@ -240,7 +207,6 @@ app.post('/api/clearance/action', async (req, res) => {
             return res.status(404).json({ message: "error: Clearance request document not found." });
         }
 
-        // Apply dynamic clearance updates
         request.statuses[departmentRole].status = action;
         request.statuses[departmentRole].reason = action === 'Rejected' ? (reason || '') : '';
 
@@ -257,7 +223,60 @@ app.post('/api/clearance/action', async (req, res) => {
     }
 });
 
-// CRITICAL: Tell Express to start listening to incoming network requests on Port 5000
+app.post('/api/clearance/resubmit', async (req, res) => {
+    try {
+        const { studentId, departmentRole } = req.body;
+
+        if (!studentId || !departmentRole) {
+            return res.status(400).json({ message: "error: Missing required parameters." });
+        }
+
+        const request = await ClearanceRequest.findOne({ studentId });
+        if (!request) {
+            return res.status(404).json({ message: "error: Request document not found." });
+        }
+
+        // Update target department status to 'Resubmitted' and reset previous rejection reason
+        request.statuses[departmentRole].status = 'Resubmitted';
+        request.statuses[departmentRole].reason = '';
+
+        const updatedRequest = await request.save();
+
+        res.status(200).json({
+            message: `Clearance request successfully resubmitted to ${departmentRole.toUpperCase()}!`,
+            clearance: updatedRequest
+        });
+
+    } catch (error) {
+        console.error("Resubmission Route Error:", error);
+        res.status(500).json({ message: "error: Failed to resubmit request", error: error.message });
+    }
+});
+app.get('/api/clearance/resubmitted', async (req, res) => {
+    try {
+        const { departmentRole } = req.query;
+
+        if (!departmentRole || departmentRole === 'student') {
+            return res.status(403).json({ message: "error: Unauthorized access." });
+        }
+
+        // Search database specifically for requests marked as 'Resubmitted' for this department
+        const dynamicQuery = {
+            [`statuses.${departmentRole}.status`]: 'Resubmitted'
+        };
+
+        const resubmittedRequests = await ClearanceRequest.find(dynamicQuery)
+            .populate('studentId', 'name registeration_no department phoneNumber');
+
+        res.status(200).json({ requests: resubmittedRequests });
+
+    } catch (error) {
+        console.error("Fetch Resubmitted Requests Error:", error);
+        res.status(500).json({ message: "error: Failed to fetch resubmitted requests", error: error.message });
+    }
+});
+
+
 app.listen(PORT, () => {
     console.log(`🚀 Server is listening and running on http://localhost:${PORT}`);
 });

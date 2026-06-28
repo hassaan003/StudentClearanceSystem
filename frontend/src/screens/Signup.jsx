@@ -1,23 +1,19 @@
 import { useState } from 'react';
 import { SIGNUP_URL } from '../endPoints';
-//this sub compoonent that recieves props(variables and fuctions) from App.jsx.
-//setScreen, setMessage are passed down, so this screen can redirect to the user.
+
 function SignupScreen({ setScreen, setMessage, message }) {
-  //useState() creates state variables.
-  //setName is only function that is allowed to change the value of name.
+
   const [name, setName] = useState('');
   const [registerationNo, setRegisterationNo] = useState('');
   const [password, setPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [department, setDepartment] = useState('');
 
-  //async tells react that this function is doing backround work and might take time.
   const handleSignup = async (e) => {
-    e.preventDefault();     //e.prevetDefault() stops webpage from automatically reloading when form is submitted.
+    e.preventDefault();    
 
-    setMessage('');  //clears all fields once form is submitted.
+    setMessage(''); 
 
-    //it creates a data object formatted exactly as our backend schema expects.
     const formData = {
       name: name,
       registeration_no: registerationNo,
@@ -27,19 +23,17 @@ function SignupScreen({ setScreen, setMessage, message }) {
     };
 
     try {
-      const response = await fetch(SIGNUP_URL, { //fetch sends network request, await pauses this function until the server responds.
+      const response = await fetch(SIGNUP_URL, { 
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json' // tells server we are sending data in json.
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData) // converts js object into simple text string.
+        body: JSON.stringify(formData)
       });
 
-      //converts response from backend to readable js object.
       const data = await response.json();
 
       if (response.ok) {
-        // Sets the success message and redirects to login instantly
         setMessage(`success ${data.message || 'User registered successfully!'} please login`);
         setScreen('login');
       } else {
@@ -58,10 +52,8 @@ function SignupScreen({ setScreen, setMessage, message }) {
       {message && <p style={msgStyle(message)}>{message}</p>}
 
 
-      {/* 'onSubmit' triggers the registration handler when the form button is clicked */}
       <form onSubmit={handleSignup} style={formStyle}>
         <label style={labelStyle}>Full Name:</label>
-        {/* 'onChange' detects typing. 'e.target.value' grabs the letter typed and saves it to state */}
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} required style={inputStyle} />
 
         <label style={labelStyle}>Registration No</label>
@@ -81,7 +73,6 @@ function SignupScreen({ setScreen, setMessage, message }) {
 
       <p style={{ color: 'black', textAlign: 'center', marginTop: '15px' }}>
         Already have an account?{' '}
-        {/* Clicking this text switches the active view back to login */}
         <span style={linkStyle} onClick={() => { setScreen('login'); setMessage(''); }}>Log In</span>
       </p>
     </div>
