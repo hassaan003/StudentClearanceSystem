@@ -61,7 +61,6 @@ function LoginScreen({ setScreen, setUser, setMessage, message }) {
         <button type="submit" style={{ padding: '10px', paddingLeft: '20px', paddingRight: '20px', backgroundColor: 'black', color: 'lightgrey', border: '1px solid black', borderRadius: '6px', cursor: 'pointer' }}>Login</button>
 
 
-        <button onClick={() => { setScreen('signup'); setMessage(''); }} style={{ padding: '9px', backgroundColor: 'grey', color: 'black', border: '1px solid black', borderRadius: '6px', cursor: 'pointer', }}>Sign Up</button>
         
       </form>
 
