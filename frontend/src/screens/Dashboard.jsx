@@ -1,33 +1,52 @@
+// frontend/src/screens/Dashboard.jsx
 
-
+// 'useState' lets us store and update values on the screen dynamically.
+// 'useEffect' lets us run a function automatically when the screen loads.
 import { useState, useEffect } from 'react';
 
-// API endpoints configured directly for the MERN execution server
+// Central API endpoints configured directly for the MERN execution server
 const CLEARANCE_REQ_URL = 'http://localhost:5000/api/clearance/request';
 const CLEARANCE_STATUS_URL = 'http://localhost:5000/api/clearance/my-status';
 const PENDING_REQS_URL = 'http://localhost:5000/api/clearance/pending';
 const CLEARANCE_ACTION_URL = 'http://localhost:5000/api/clearance/action';
-
 const CLEARANCE_RESUBMIT_URL = 'http://localhost:5000/api/clearance/resubmit';
-const RESUBMITTED_REQS_URL = 'http://localhost:5000/api/clearance/resubmitted';
+
+// supervisor's new feature: Fetch all rejected/resubmitted records for the admin
+const REJECTED_REQS_URL = 'http://localhost:5000/api/clearance/rejected';
+
+// Safe static list of all 7 departments to render when a student hasn't applied yet
+const ALL_DEPARTMENTS = ['finance', 'datacell', 'lab', 'cafeteria', 'library', 'photocopier', 'report'];
 
 function DashboardScreen({ user, handleLogout, handleHistory }) {
+  // Evaluates to 'true' if the logged-in user is a student, 'false' if it's a department admin.
   const isStudent = user.role === 'student';
 
+  // --- STATE VARIABLES ---
+  // 'clearanceData' holds the student's 7-department checklist from the database.
   const [clearanceData, setClearanceData] = useState(null);
 
+  // 'pendingStudents' holds the array of students waiting for this admin's pending approval
   const [pendingStudents, setPendingStudents] = useState([]);
 
-  const [resubmittedStudents, setResubmittedStudents] = useState([]);
+  // 'rejectedStudents' holds the array of students currently rejected or resubmitted (The Supervisor's Queue)
+  const [rejectedStudents, setRejectedStudents] = useState([]);
 
+  // 'searchQuery' holds the registration number filter typed by the department head
   const [searchQuery, setSearchQuery] = useState('');
 
+  // 'loading' shows a "Loading..." text while we wait for the database to reply.
   const [loading, setLoading] = useState(true);
 
+  // 'dashboardMsg' holds text for our red/green success and error banners.
   const [dashboardMsg, setDashboardMsg] = useState('');
 
+  // --- REJECTION MODAL STATE ---
   const [activeRejectionRequest, setActiveRejectionRequest] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+
+  // ============================================================================
+  // FUNCTION 1: FETCH CLEARANCE STATUS (Reads student data from database)
+  // ============================================================================
   const fetchClearanceStatus = async () => {
     try {
       setLoading(true);
@@ -37,6 +56,7 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
       const data = await response.json();
 
       if (response.ok) {
+        // Safe check for the nested database clearance object
         setClearanceData(data.clearance); 
       } else {
         setDashboardMsg("error: could not fetch clearance status");
@@ -49,7 +69,9 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
     }
   };
 
-
+  // ============================================================================
+  // FUNCTION 2: INITIATE CLEARANCE (Student applies for the first time)
+  // ============================================================================
   const handleInitiateClearance = async () => {
     try {
       setLoading(true);
@@ -64,7 +86,8 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
       const data = await response.json();
 
       if (response.ok) {
-        setClearanceData(data.clearance); 
+        setDashboardMsg("success: Clearance process initiated successfully!");
+        setClearanceData(data.clearance); // Instantly update view with the checklist
       } else {
         setDashboardMsg(`error: ${data.message || "Failed to initiate clearance."}`);
       }
@@ -76,6 +99,9 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
     }
   };
 
+  // ============================================================================
+  // FUNCTION 2.5: RESUBMIT REQUEST (Student resubmits a rejected department)
+  // ============================================================================
   const handleResubmit = async (departmentRole) => {
     try {
       setLoading(true);
@@ -93,6 +119,7 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
       const data = await response.json();
 
       if (response.ok) {
+        setDashboardMsg(`success: Clearance request resubmitted to ${departmentRole.toUpperCase()}!`);
         setClearanceData(data.clearance); // Instantly update view checklist
       } else {
         setDashboardMsg(`error: ${data.message || "Failed to resubmit request."}`);
@@ -105,6 +132,9 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
     }
   };
 
+  // ============================================================================
+  // FUNCTION 3: FETCH PENDING STUDENTS (For Department Admins - Awaiting Queue)
+  // ============================================================================
   const fetchPendingStudents = async () => {
     try {
       const response = await fetch(`${PENDING_REQS_URL}?departmentRole=${user.role}`);
@@ -121,15 +151,18 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
     }
   };
 
-  const fetchResubmittedStudents = async () => {
+  // ============================================================================
+  // FUNCTION 3.5: FETCH REJECTED STUDENTS (For Department Admins - Rejection Queue)
+  // ============================================================================
+  const fetchRejectedStudents = async () => {
     try {
-      const response = await fetch(`${RESUBMITTED_REQS_URL}?departmentRole=${user.role}`);
+      const response = await fetch(`${REJECTED_REQS_URL}?departmentRole=${user.role}`);
       const data = await response.json();
 
       if (response.ok) {
-        setResubmittedStudents(data.requests); 
+        setRejectedStudents(data.requests); 
       } else {
-        setDashboardMsg("error: Could not fetch resubmitted students.");
+        setDashboardMsg("error: Could not fetch rejected queue.");
       }
     } catch (err) {
       console.error(err);
@@ -137,12 +170,16 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
     }
   };
 
+  // Helper method to refresh admin views cleanly at once
   const refreshAdminViews = async () => {
     setLoading(true);
-    await Promise.all([fetchPendingStudents(), fetchResubmittedStudents()]);
+    await Promise.all([fetchPendingStudents(), fetchRejectedStudents()]);
     setLoading(false);
   };
 
+  // ============================================================================
+  // FUNCTION 4: SUBMIT ACTION (Approve / Reject Action Dispatcher)
+  // ============================================================================
   const handleClearanceAction = async (requestId, action, reasonText = '') => {
     try {
       setLoading(true);
@@ -162,9 +199,10 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
       const data = await response.json();
 
       if (response.ok) {
+        setDashboardMsg(`success: Student clearance state set to ${action}!`);
         setActiveRejectionRequest(null);
         setRejectionReason('');
-        await refreshAdminViews(); 
+        await refreshAdminViews(); // Refresh both lists instantly
       } else {
         setDashboardMsg(`error: ${data.message || "Failed to update action."}`);
       }
@@ -176,6 +214,9 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
     }
   };
 
+  // ============================================================================
+  // AUTO-TRIGGER (Triggers instantly on render)
+  // ============================================================================
   useEffect(() => {
     if (isStudent) {
       fetchClearanceStatus(); 
@@ -184,7 +225,8 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
     }
   }, [user.id]);
 
-  const filteredResubmitted = resubmittedStudents.filter((request) => {
+  // Filter the rejected/resubmitted list in real-time by student roll number
+  const filteredRejected = rejectedStudents.filter((request) => {
     const rollNo = request.studentId?.registeration_no || '';
     return rollNo.toLowerCase().includes(searchQuery.toLowerCase());
   });
@@ -205,26 +247,51 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
         <p style={{ textAlign: 'center', color: 'black', fontWeight: 'bold' }}>Loading database records...</p>
       ) : (
         <>
+          {/* ============================================================================
+              VIEW A: STUDENT INTERFACE
+              ============================================================================ */}
           {isStudent && (
             <div style={{ marginTop: '20px' }}>
+              
+              {/* SCENARIO 1: Student has NOT clicked Apply yet (clearanceData is null) */}
               {!clearanceData || !clearanceData.statuses ? (
-                <div style={workspaceStyle}>
-                  <p style={{ color: 'black', fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '15px', textAlign: 'center' }}>
-                     Your clearance process has not been initiated yet.
-                  </p>
-                  <p style={{ color: 'black', fontSize: '0.9rem', marginBottom: '20px', textAlign: 'center' }}>
-                    Clicking the button below will submit an automatic clearance request to all 7 departments simultaneously.
-                  </p>
-                  <button onClick={handleInitiateClearance} style={btnStyle}>
-                    Apply for Clearance
-                  </button>
-                </div>
-              ) : (
                 <div style={workspaceStyle}>
                   <h3 style={{ color: 'black', marginTop: 0, marginBottom: '20px', borderBottom: '1px solid black', paddingBottom: '10px', textAlign: 'center' }}>
                     My Clearance Checklist
                   </h3>
                   
+                  {/* Map over ALL_DEPARTMENTS cleanly to avoid null pointer crashes */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
+                    {ALL_DEPARTMENTS.map((deptKey) => (
+                      <div key={deptKey} style={checklistLineStyle}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 'bold', color: 'black' }}>
+                            {deptKey.toUpperCase()}
+                          </span>
+                          <span style={statusBadgeStyle('Not Sent')}>
+                            ⚪ Not Initiated
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p style={{ color: 'black', fontSize: '0.9rem', marginBottom: '20px', textAlign: 'center', fontStyle: 'italic' }}>
+                    Clicking the button below will submit an automatic clearance request to all 7 departments simultaneously.
+                  </p>
+                  
+                  <button onClick={handleInitiateClearance} style={btnStyle}>
+                    Apply for Clearance
+                  </button>
+                </div>
+              ) : (
+                
+                /* SCENARIO 2: Student HAS applied (Show the live 7-department checklist) */
+                <div style={workspaceStyle}>
+                  <h3 style={{ color: 'black', marginTop: 0, marginBottom: '20px', borderBottom: '1px solid black', paddingBottom: '10px', textAlign: 'center' }}>
+                    My Clearance Checklist
+                  </h3>
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     {Object.keys(clearanceData.statuses).map((deptKey) => {
                       const dept = clearanceData.statuses[deptKey];
@@ -235,14 +302,15 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
                               {deptKey.toUpperCase()}
                             </span>
                             <span style={statusBadgeStyle(dept.status)}>
-                              {dept.status === 'Approved' && 'Approved'}
-                              {dept.status === 'Pending' && 'Pending Approval'}
-                              {dept.status === 'Rejected' && 'Rejected'}
-                              {dept.status === 'Resubmitted' && 'Resubmitted'}
-                              {dept.status === 'Not Sent' && 'Not Initiated'}
+                              {dept.status === 'Approved' && '✅ Approved'}
+                              {dept.status === 'Pending' && '⏳ Pending Approval'}
+                              {dept.status === 'Rejected' && '❌ Rejected'}
+                              {dept.status === 'Resubmitted' && '🔄 Resubmitted'}
+                              {dept.status === 'Not Sent' && '⚪ Not Initiated'}
                             </span>
                           </div>
-                          
+
+                          {/* If department is rejected, show rejection reason AND Resubmit Button */}
                           {dept.status === 'Rejected' && (
                             <div style={{ marginTop: '10px' }}>
                               {dept.reason && (
@@ -250,11 +318,11 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
                                   <strong>Reason:</strong> {dept.reason}
                                 </div>
                               )}
-                              <button 
-                                onClick={() => handleResubmit(deptKey)} 
+                              <button
+                                onClick={() => handleResubmit(deptKey)}
                                 style={resubmitBtnStyle}
                               >
-                                Resubmit
+                                🔄 Resubmit to {deptKey.toUpperCase()}
                               </button>
                             </div>
                           )}
@@ -267,19 +335,23 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
             </div>
           )}
 
+          {/* ============================================================================
+              VIEW B: DEPARTMENT ADMIN INTERFACE (Finance, Library, Cafeteria, etc)
+              ============================================================================ */}
           {!isStudent && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', marginTop: '20px' }}>
               
+              {/* SECTION B1: FRESH PENDING CLEARANCES */}
               <div style={workspaceStyle}>
                 <h4 style={{ color: 'black', marginTop: 0, fontSize: '18px', textAlign: 'center', borderBottom: '1px solid black', paddingBottom: '10px' }}>
-                  Awaiting Clearance ({user.role.toUpperCase()})
+                  ⏳ Awaiting Clearance ({user.role.toUpperCase()})
                 </h4>
-                <p style={{ color: 'black', fontSize: '0.85rem', textAlign: 'center', marginTop: '10px', marginBottom: '15px'}}>
+                <p style={{ color: 'black', fontSize: '0.85rem', textAlign: 'center', marginTop: '10px', marginBottom: '15px' }}>
                   New clearance requests waiting for approval:
                 </p>
-                
+
                 {pendingStudents.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: 'black',backgroundColor: '#e0e0e0', padding: '15px', borderRadius: '5px', border: '1px solid black' }}>
+                  <p style={{ textAlign: 'center', color: 'black', backgroundColor: '#e0e0e0', padding: '15px', borderRadius: '5px', border: '1px solid black' }}>
                     No pending clearance requests.
                   </p>
                 ) : (
@@ -296,21 +368,21 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
                         {activeRejectionRequest === request._id ? (
                           <div style={rejectionModalStyle}>
                             <label style={{ color: 'black', fontWeight: 'bold', fontSize: '0.85rem' }}>Write Rejection Reason:</label>
-                            <textarea 
+                            <textarea
                               value={rejectionReason}
                               onChange={(e) => setRejectionReason(e.target.value)}
                               required
                               style={textAreaStyle}
                             />
                             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                              <button 
+                              <button
                                 style={{ ...btnStyle, backgroundColor: '#822d36', flex: 1, margin: 0, padding: '8px' }}
                                 onClick={() => handleClearanceAction(request._id, 'Rejected', rejectionReason)}
                               >
                                 Submit
                               </button>
-                              <button 
-                                style={{ ...btnStyle, color:'black',backgroundColor: 'darkgrey', flex: 1, margin: 0, padding: '8px' }}
+                              <button
+                                style={{ ...btnStyle, color: 'black', backgroundColor: 'darkgrey', flex: 1, margin: 0, padding: '8px' }}
                                 onClick={() => { setActiveRejectionRequest(null); setRejectionReason(''); }}
                               >
                                 Cancel
@@ -329,55 +401,69 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
                 )}
               </div>
 
+              {/* SECTION B2: SUPERVISOR'S SPECIAL REJECTION & RESUBMITTED QUEUE */}
               <div style={workspaceStyle}>
                 <h4 style={{ color: 'black', marginTop: 0, fontSize: '18px', textAlign: 'center', borderBottom: '1px solid black', paddingBottom: '10px' }}>
-                  Resubmitted Requests ({user.role.toUpperCase()})
+                  🚫 Rejected / Resubmitted Queue ({user.role.toUpperCase()})
                 </h4>
-                
+
                 <div style={searchContainerStyle}>
-                  <label style={{ color: 'black', fontWeight: 'bold', fontSize: '0.85rem' }}>Search Student by ARID No:</label>
-                  <input 
-                    type="text" 
+                  <label style={{ color: 'black', fontWeight: 'bold', fontSize: '0.85rem' }}>Search Student by Roll No:</label>
+                  <input
+                    type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search by registration number (e.g. 4010)..."
                     style={searchInputStyle}
                   />
                 </div>
-                
-                {filteredResubmitted.length === 0 ? (
+
+                {filteredRejected.length === 0 ? (
                   <p style={{ textAlign: 'center', color: 'black', fontStyle: 'italic', backgroundColor: '#e0e0e0', padding: '15px', borderRadius: '5px', border: '1px solid black' }}>
-                    No resubmitted requests matching search.
+                    No rejected or resubmitted requests found.
                   </p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    {filteredResubmitted.map((request) => (
+                    {filteredRejected.map((request) => (
                       <div key={request._id} style={checklistLineStyle}>
                         <div style={{ marginBottom: '10px' }}>
                           <p style={{ margin: '3px 0', color: 'black' }}><strong>Name:</strong> {request.studentId?.name}</p>
                           <p style={{ margin: '3px 0', color: 'black' }}><strong>Roll No:</strong> {request.studentId?.registeration_no}</p>
                           <p style={{ margin: '3px 0', color: 'black' }}><strong>Dept:</strong> {request.studentId?.department}</p>
                           <p style={{ margin: '3px 0', color: 'black' }}><strong>Phone:</strong> {request.studentId?.phoneNumber}</p>
+                          
+                          {/* Live Status Badge of the request inside the rejection list */}
+                          <p style={{ margin: '8px 0 3px 0', color: 'black' }}>
+                            <strong>Current Status:</strong>{' '}
+                            <span style={statusBadgeStyle(request.statuses[user.role].status)}>
+                              {request.statuses[user.role].status === 'Rejected' ? '❌ Rejected' : '🔄 Resubmitted'}
+                            </span>
+                          </p>
+                          {request.statuses[user.role].reason && (
+                            <div style={rejectionReasonStyle}>
+                              <strong>Rejection Reason:</strong> {request.statuses[user.role].reason}
+                            </div>
+                          )}
                         </div>
 
                         {activeRejectionRequest === request._id ? (
                           <div style={rejectionModalStyle}>
-                            <label style={{ color: 'black', fontWeight: 'bold', fontSize: '0.85rem' }}>Write Rejection Reason:</label>
-                            <textarea 
+                            <label style={{ color: 'black', fontWeight: 'bold', fontSize: '0.85rem' }}>Write New Rejection Reason:</label>
+                            <textarea
                               value={rejectionReason}
                               onChange={(e) => setRejectionReason(e.target.value)}
-                              placeholder="e.g. Please resolve cafeteria payments"
+                              placeholder="e.g. Dues still missing..."
                               required
                               style={textAreaStyle}
                             />
                             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                              <button 
+                              <button
                                 style={{ ...btnStyle, backgroundColor: '#dc3545', flex: 1, margin: 0, padding: '8px' }}
                                 onClick={() => handleClearanceAction(request._id, 'Rejected', rejectionReason)}
                               >
                                 Submit Rejection
                               </button>
-                              <button 
+                              <button
                                 style={{ ...btnStyle, backgroundColor: '#6c757d', flex: 1, margin: 0, padding: '8px' }}
                                 onClick={() => { setActiveRejectionRequest(null); setRejectionReason(''); }}
                               >
@@ -388,7 +474,7 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
                         ) : (
                           <div style={{ display: 'flex', gap: '10px' }}>
                             <button style={approveBtnStyle} onClick={() => handleClearanceAction(request._id, 'Approved')}>Approve</button>
-                            <button style={rejectBtnStyle} onClick={() => setActiveRejectionRequest(request._id)}>Reject</button>
+                            <button style={rejectBtnStyle} onClick={() => setActiveRejectionRequest(request._id)}>Re-Reject</button>
                           </div>
                         )}
                       </div>
@@ -402,8 +488,9 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
         </>
       )}
 
+      {/* Shared Buttons Box */}
       <div style={{ display: 'flex', gap: '10px', marginTop: '25px', width: '100%', marginLeft: 'auto', marginRight: 'auto' }}>
-        <button onClick={handleLogout} style={{ ...logoutBtnStyle, backgroundColor:'lightgrey',color:'black',flex: 1, marginTop: '0' }}>
+        <button onClick={handleLogout} style={{ ...logoutBtnStyle, backgroundColor: 'lightgrey', color: 'black', flex: 1, marginTop: '0' }}>
           Logout
         </button>
         {!isStudent && (
@@ -416,6 +503,9 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
   );
 }
 
+// ============================================================================
+// STYLES (Custom Gray/Black Industrial Theme)
+// ============================================================================
 const cardStyle = { padding: '30px', borderRadius: '10px', backgroundColor: 'grey', boxShadow: '3px 3px 15px black', width: '100%', maxWidth: '450px' };
 const titleStyle = { textAlign: 'center', marginBottom: '30px', color: 'black', fontSize: '25px', fontWeight: 'bold' };
 
@@ -425,18 +515,21 @@ const infoTextStyle = { margin: '5px 0', color: 'black' };
 const workspaceStyle = { padding: '20px', backgroundColor: 'darkgrey', borderRadius: '8px', border: '1px solid black' };
 const checklistLineStyle = { display: 'flex', flexDirection: 'column', padding: '12px', backgroundColor: '#e0e0e0', borderRadius: '5px', border: '1px solid black' };
 
-const rejectionReasonStyle = { marginTop: '8px', padding: '8px',   fontSize: '0.85rem', color: '#4e4d4d', marginBottom: '10px' };
-const rejectionModalStyle = { marginTop: '10px', padding: '12px', backgroundColor: 'lightgrey', borderRadius: '5px', border: '1px solid #ffeeba', display: 'flex', flexDirection: 'column', gap: '5px' };
+const rejectionReasonStyle = { marginTop: '8px', padding: '8px', backgroundColor: '#f8d7da', border: '1px solid #f5c6cb', borderRadius: '4px', fontSize: '0.85rem', color: '#721c24', marginBottom: '10px' };
+const rejectionModalStyle = { marginTop: '10px', padding: '12px', backgroundColor: '#fff3cd', borderRadius: '5px', border: '1px solid #ffeeba', display: 'flex', flexDirection: 'column', gap: '5px' };
 const textAreaStyle = { width: '90%', minHeight: '60px', padding: '8px', borderRadius: '4px', border: '1px solid black', backgroundColor: 'white', color: 'black', fontFamily: 'sans-serif', resize: 'vertical', marginTop: '5px' };
 
 const btnStyle = { padding: '12px', backgroundColor: 'black', color: '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer', display: 'block', margin: '15px auto 0 auto', width: '60%' };
 const logoutBtnStyle = { padding: '12px', backgroundColor: 'black', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer', marginTop: '25px', width: '90%', display: 'block', marginLeft: 'auto', marginRight: 'auto' };
 
-const approveBtnStyle = { padding: '8px 15px', backgroundColor: '#266034', color: 'white', border: '1px solid black', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', flex: 1 };
-const rejectBtnStyle = { padding: '8px 15px', backgroundColor: '#79252d', color: 'white', border: '1px solid black', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', flex: 1 };
+// Action Buttons
+const approveBtnStyle = { padding: '8px 15px', backgroundColor: '#28a745', color: 'white', border: '1px solid black', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', flex: 1 };
+const rejectBtnStyle = { padding: '8px 15px', backgroundColor: '#dc3545', color: 'white', border: '1px solid black', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', flex: 1 };
 
+// Student-side Local Resubmit Button
 const resubmitBtnStyle = { padding: '6px 12px', backgroundColor: 'black', color: 'white', border: '1px solid black', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', display: 'block', width: '100%' };
 
+// Search Styling
 const searchContainerStyle = { marginBottom: '15px', display: 'flex', flexDirection: 'column', gap: '5px' };
 const searchInputStyle = { padding: '8px', borderRadius: '5px', border: '1px solid black', backgroundColor: 'white', color: 'black', fontSize: '0.9rem' };
 
@@ -455,14 +548,14 @@ const msgStyle = (msg) => ({
 const statusBadgeStyle = (status) => {
   let color = 'black';
   let fontStyle = 'normal';
-  if (status === 'Approved') color = '#3b3d3b';
+  if (status === 'Approved') color = '#155724';
   if (status === 'Pending') {
-    color = '#424242';
+    color = '#856404';
     fontStyle = 'italic';
   }
-  if (status === 'Rejected') color = 'grey';
+  if (status === 'Rejected') color = '#721c24';
   if (status === 'Resubmitted') {
-    color = '#141618';
+    color = '#0056b3';
     fontStyle = 'italic';
   }
   
@@ -475,3 +568,6 @@ const statusBadgeStyle = (status) => {
 };
 
 export default DashboardScreen;
+
+
+

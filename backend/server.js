@@ -223,6 +223,25 @@ app.post('/api/clearance/action', async (req, res) => {
     }
 });
 
+app.get('/api/clearance/rejected', async(req,res)=>{
+    try{
+        const {departmentRole}=req.query;
+        if(!departmentRole||departmentRole==='student'){
+            return res.status(403).json({message:"error:unauthroized access"});
+        }
+        const dynamicQuery={
+            [`statuses.${departmentRole}.status`]:{$in:['Rejected','Resubmitted']}
+        };
+
+        const rejectedRequests=await ClearanceRequest.find(dynamicQuery)
+        .populate('studentId','name registeration_no department phoneNumber');
+        res.status(200).json({requests:rejectedRequests});
+    }
+    catch(error){
+        console.error("fetching rejected requests error", error);
+        res.status(500).json({message:"error", error:error.message});
+    }
+});
 app.post('/api/clearance/resubmit', async (req, res) => {
     try {
         const { studentId, departmentRole } = req.body;
