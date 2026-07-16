@@ -19,9 +19,8 @@ function App() {
 
   const handleHistory=()=>{
     setScreen('history');
-
   }
-
+  
   return (
     <div style={containerStyle}>
       
