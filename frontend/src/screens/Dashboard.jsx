@@ -566,7 +566,6 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
       setLoading(true);
       const response = await fetch(`${CLEARANCE_STATUS_URL}?studentId=${user.id}`);
       const data = await response.json();
-
       if (response.ok) {
         setClearanceData(data.clearance);
 
@@ -673,7 +672,7 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
     await Promise.all([fetchPendingStudents(), fetchRejectedStudents()]);
     setLoading(false);
   };
-
+  
   const fetchFailedCourses = async () => {
     try {
       const response = await fetch(`${GET_FAILED_COURSES}?registeration_no=${user.registeration_no}`);
@@ -743,22 +742,23 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
 
               {!clearanceData || !clearanceData.statuses ? (
                 <div style={workspaceStyle}>
+                
 
                   <div style={eligibilityBoxStyle}>
+                    {checkingEligibility || !eligibilityData || (
                     <h4 style={{ margin: '0 0 10px 0', borderBottom: '1px solid #000000', paddingBottom: '8px' }}>
-                      Clearance Eligibility Status
+                      Clearance Eligibility Status {eligibilityData?.isEligible ? '(Eligible)' : '(Ineligible)'}
                     </h4>
+                    )}
                     {checkingEligibility || !eligibilityData ? (
                       <p style={{ fontStyle: 'italic', margin: 0 }}>Checking academic records...</p>
                     ) : (
                       <div>
                         <div style={eligibilityRowStyle}>
                           <span><strong>CGPA (Min 2.5):</strong> {eligibilityData.cgpa}</span>
-                          <span>{eligibilityData.cgpa >= 2.5 ? 'Pass' : 'Fail'}</span>
                         </div>
                         <div style={eligibilityRowStyle}>
                           <span><strong>Failed Courses:</strong> {eligibilityData.failedCourses}</span>
-                          <span>{eligibilityData.failedCourses === 0 ? 'Pass' : 'Fail'}</span>
                         </div>
 
                         {!eligibilityData.isEligible && (
@@ -872,8 +872,6 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
                   Rejected ({filteredRejected.length})
                 </button>
               </div>
-
-              {/* Dynamic Workspace based on Active Tab */}
               <div style={workspaceStyle}>
 
                 {/* TAB 1: PENDING REQUESTS PANEL (Shows BOTH Pending and Resubmitted) */}
@@ -939,14 +937,11 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
                     )}
                   </div>
                 )}
-
-                {/* TAB 2: REJECTED QUEUE PANEL */}
                 {activeTab === 'rejected' && (
                   <div>
                     <h4 style={{ color: 'black', marginTop: 0, fontSize: '18px', textAlign: 'center', borderBottom: '1px solid black', paddingBottom: '10px' }}>
                       Rejected Requests ({user.role.toUpperCase()})
                     </h4>
-
                     <div style={{ ...searchContainerStyle, marginTop: '15px' }}>
                       <input
                         type="text"
@@ -956,7 +951,6 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
                         style={searchInputStyle}
                       />
                     </div>
-
                     {filteredRejected.length === 0 ? (
                       <p style={{ textAlign: 'center', color: 'black', fontStyle: 'italic', backgroundColor: '#e0e0e0', padding: '15px', borderRadius: '5px', border: '1px solid black' }}>
                         No items in rejection queue.
@@ -1004,11 +998,11 @@ function DashboardScreen({ user, handleLogout, handleHistory }) {
                                     Cancel
                                   </button>
                                 </div>
-                              </div>
+                              </div>         
                             ) : (
                               <div style={{ display: 'flex', gap: '10px' }}>
                                 <button style={approveBtnStyle} onClick={() => handleClearanceAction(request._id, 'Approved')}>Approve</button>
-                                <button style={rejectBtnStyle} onClick={() => setActiveRejectionRequest(request._id)}>Reject</button>
+                                {/* <button style={rejectBtnStyle} onClick={() => setActiveRejectionRequest(request._id)}>Reject</button> */}
                               </div>
                             )}
                           </div>

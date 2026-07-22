@@ -52,12 +52,18 @@ app.get('/api/seed', async (req, res) => {
             department: dept,
             role: dept
         }));
+        
         const studentDocs = [
             { name: "Hassaan", registeration_no: "4010", password: "123", phoneNumber: "0340", department: "CS", role: "student" },
             { name: "Ali ", registeration_no: "4096", password: "123", phoneNumber: "0333", department: "SE", role: "student" },
             { name: "Ahmed", registeration_no: "4003", password: "123", phoneNumber: "0347", department: "CS", role: "student" },
             { name: "Sara", registeration_no: "4001", password: "123", phoneNumber: "0300", department: "CS", role: "student" },
-            { name: "Zain", registeration_no: "4002", password: "123", phoneNumber: "0311", department: "IT", role: "student" }
+            { name: "Zain", registeration_no: "4002", password: "123", phoneNumber: "0311", department: "IT", role: "student" },
+            { name: "Zain", registeration_no: "1998-ARID-0441", password: "123", phoneNumber: "0312", department: "IT", role: "student" },
+            { name: "Ayyan", registeration_no: "1998-ARID-0442", password: "123", phoneNumber: "0313", department: "IT", role: "student" }
+
+
+
         ];
         await User.insertMany([...adminDocs, ...studentDocs]);
         await Accgpa.insertMany([
@@ -65,7 +71,9 @@ app.get('/api/seed', async (req, res) => {
             { REG_NO: "4096", CGPA: 2.1 }, // Ali - Fails CGPA check
             { REG_NO: "4003", CGPA: 3.0 }, // Ahmed - Passes CGPA check
             { REG_NO: "4001", CGPA: 2.8 }, // Sara - Passes CGPA check
-            { REG_NO: "4002", CGPA: 1.9 }  // Zain - Fails CGPA check
+            { REG_NO: "4002", CGPA: 1.9 },
+            { REG_NO: "1998-ARID-0441", CGPA: 2.5 }, 
+            { REG_NO:"1998-ARID-0442", CGPA:2.0}
         ]);
         await CrsFail.insertMany([
             { REG_NO: "4001", Course_no: "CS-101", grade: "F" }, // Sara has 1 F
@@ -77,7 +85,6 @@ app.get('/api/seed', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 
 app.get('/api/check-eligibility', async (req, res) => {
     try {
@@ -185,7 +192,6 @@ app.post('/api/clearance/resubmit', async (req, res) => {
         res.status(200).json({ message: "Resubmitted!", clearance: updated });
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.get('/api/clearance/approved', async (req, res) => {
     try {
         const dynamicQuery = {
@@ -196,7 +202,6 @@ app.get('/api/clearance/approved', async (req, res) => {
         res.status(200).json({ requests: approvedStudents });
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.post('/api/clearance/action', async (req, res) => {
     try {
         const { requestId, departmentRole, action, reason } = req.body;
